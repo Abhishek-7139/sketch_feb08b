@@ -37,7 +37,8 @@ void setup() {
   }
   LoRa.setSyncWord(0xF3);
   Serial.println("LoRa Initialized");
-
+//  LoRa.receive();
+//  LoRa.onReceive(packetParser);
 }
 
 void loop() {
@@ -59,28 +60,39 @@ void loop() {
   Serial.print("Humidity: ");
   Serial.println(humidity_value);
 
+  Serial.print("Is Pump On: ");
+  Serial.println(isPumpOn);
+
   Serial.println("Sending data by LoRa");
   //send sensors by lora
   LoRa.beginPacket();
-  LoRa.print(String(moisture_value, 3) + "," + String(temp_value, 3) + "," + String(humidity_value, 3) + "," + String(isPumpOn) + "\n");
+  LoRa.print(String(moisture_value, 3)+","+String(temp_value, 3)+","+String(humidity_value, 3)+","+String(isPumpOn));
   LoRa.endPacket();
 
   //dont know how long need to wait before receiving
   //need to look at this
-  delay(2000);
+//  delay(2000);
+//
+//  //receive lora packet
+//  int packetSize = LoRa.parsePacket();
+//  if (packetSize) { 
+//    while(LoRa.available()) {
+//      String LoRaReceived = LoRa.readString();
+//      Serial.print(LoRaReceived);
+//      //pump_on_off logic
+//      int pump_on = LoRaReceived[0]-'0';
+//      if(pump_on){digitalWrite(RELAYPIN, HIGH); isPumpOn = 1;}
+//      else{digitalWrite(RELAYPIN, LOW); isPumpOn = 0;}
+//    }
+//  }
+  delay(6000);
+}
 
-  //receive lora packet
-  int packetSize = LoRa.parsePacket();
-  if (packetSize) {
-    while(LoRa.available()) {
-      String LoRaReceived = LoRa.readString();
-      Serial.print(LoRaReceived);
-      //pump_on_off logic
-      int pump_on = LoRaReceived[0]-'0';
-      if(pump_on){digitalWrite(RELAYPIN, HIGH); isPumpOn = 1;}
-      else{digitalWrite(RELAYPIN, LOW); isPumpOn = 0;}
-    }
+void packetParser(int packetSize){
+  while(LoRa.available()){
+    String LoRaReceived = LoRa.readString();
+    String temp = LoRaReceived;
+    Serial.println(temp);
+    isPumpOn = temp.toInt();
   }
-  
-  delay(10000);
 }
