@@ -1,4 +1,3 @@
-
 #include <SPI.h>
 #include <LoRa.h>
 #include <DHT.h>
@@ -15,7 +14,9 @@
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
-int counter = 0;
+#define RELAYPIN 25
+
+int isPumpOn = 0;
 
 void setup() {
 
@@ -25,6 +26,8 @@ void setup() {
   //dht setup
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
+
+  pinMode(RELAYPIN, OUTPUT);
 
   //lora setup
   LoRa.setPins(ss, rst, dio0);
@@ -41,16 +44,25 @@ void loop() {
 
   //read moisture, need to convert
   float moisture_value = -analogRead(MOISTUREPIN);
+  moisture_value = ( 100 - ( (moisture_value / 1023.00) * 100 ) );
+  Serial.print("moisture_value: ");
+  Serial.println(moisture_value);
   
   //read temp, humidity
   delay(2000);
   float temp_value = dht.readTemperature();
+  Serial.print("Temperature: ");
+  Serial.println(temp_value);
+  
   delay(2000);
   float humidity_value = dht.readHumidity();
+  Serial.print("Humidity: ");
+  Serial.println(humidity_value);
 
+  Serial.println("Sending data by LoRa");
   //send sensors by lora
   LoRa.beginPacket();
-  LoRa.print(String(moisture_value, 3) + "," + String(temp_value, 3) + "," + String(humidity_value, 3));
+  LoRa.print(String(moisture_value, 3) + "," + String(temp_value, 3) + "," + String(humidity_value, 3) + "," + String(isPumpOn) + "\n");
   LoRa.endPacket();
 
   //dont know how long need to wait before receiving
@@ -63,9 +75,12 @@ void loop() {
     while(LoRa.available()) {
       String LoRaReceived = LoRa.readString();
       Serial.print(LoRaReceived);
+      //pump_on_off logic
+      int pump_on = LoRaReceived[0]-'0';
+      if(pump_on){digitalWrite(RELAYPIN, HIGH); isPumpOn = 1;}
+      else{digitalWrite(RELAYPIN, LOW); isPumpOn = 0;}
     }
   }
-
-  delay(5000);
   
+  delay(10000);
 }
