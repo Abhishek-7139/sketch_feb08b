@@ -84,24 +84,25 @@ void loop() {
   MQTT_connect();
 
   //check for waterpump feed sub every 2 seconds
-  if (millis() - lastSubCheckTime > 2000) {
+ // if (millis() - lastSubCheckTime > 500) {
     //check waterpump manual control feed from adafruit io
     Adafruit_MQTT_Subscribe *subscription;
-    while ((subscription = mqtt.readSubscription(1000))) {
+    while ((subscription = mqtt.readSubscription(5000))) {
       if (subscription == &water_pump) {
-        if ((int)water_pump.lastread == 1 && isPumpOn == 0) {
+        if (strcmp((char*)water_pump.lastread, "1") == 0 && isPumpOn == 0) {
           Serial.println("received manual irrigation command");
           sendCommand(1);
           isPumpOn = 1;
         }
-        else if ((int)water_pump.lastread == 0 && isPumpOn == 1) {
+        else if (strcmp((char*)water_pump.lastread, "0") == 0 && isPumpOn == 1) {
+          Serial.println("received manual stop irrigation command");
           sendCommand(0);
           isPumpOn = 0;
         }
       }
     }
     if (!mqtt.ping()) mqtt.disconnect();
-  }
+  //}
 
   //print current values
   Serial.println("Current Sensor Values: " + String(soil_moisture, 3)+ ", " + String(temperature, 3)+ ", " + String(humidity, 3));
@@ -132,7 +133,7 @@ void recvCallback(int packetSize) {
 }
 void recvTask(void* parameter) {
 
-  Serial.println("receiving stuff through LoRa");
+  Serial.println("receiving values through LoRa");
 
   int recipient = LoRa.read();          // recipient address
   byte incomingLength = LoRa.read();    // incoming msg length
@@ -178,6 +179,7 @@ ICACHE_RAM_ATTR void stringParser(String s){
 
 //send irrigation command to endnode
 ICACHE_RAM_ATTR void sendCommand(int command) {
+  if (command == 1) Serial.println("sending irrigation command through LoRa");
   String payload = String(command);
 
   LoRa.beginPacket();
