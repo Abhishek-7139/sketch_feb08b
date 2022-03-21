@@ -32,12 +32,14 @@ Adafruit_MQTT_Publish hum_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.
 Adafruit_MQTT_Publish irrigation_event_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.isirrigating");
 Adafruit_MQTT_Publish water_level_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.waterlevel");
 Adafruit_MQTT_Subscribe water_pump = Adafruit_MQTT_Subscribe(&mqtt, MQTT_NAME "/f/ais.isirrigating");
+//Adafruit_MQTT_Subscribe weather = Adafruit_MQTT_Subscribe(&mqtt, MQTT_NAME "/f/ais.weather");
 
 float soil_moisture = 0;
 float temperature = 0;
 float humidity = 0;
 float waterlevel = 0;
 int isPumpOn = 0;
+int isRain = 0;
 int lastCommandTime = 0;
 int lastPublishTime = 0;
 int lastSubCheckTime = 0;
@@ -100,6 +102,16 @@ void loop() {
           isPumpOn = 0;
         }
       }
+//      else if (subscription == &weather) {
+//        if (strcmp((char*)weather.lastread, "1") == 0) {
+//          Serial.println("received rain forecast");
+//          isRain = 1;
+//        }
+//        else if (strcmp((char*)water_pump.lastread, "0") == 0 && isPumpOn == 1) {
+//          Serial.println("received no rain forecast");
+//          isRain = 0;
+//        }
+//      }
     }
     if (!mqtt.ping()) mqtt.disconnect();
   //}
@@ -171,10 +183,15 @@ ICACHE_RAM_ATTR void stringParser(String s){
   temp = s.substring(0, i);
   temperature = temp.toFloat();
   s=s.substring(i+1);
-  
+
+//  i=s.indexOf(",");
+//  temp = s.substring(0, i);
+//  humidity = temp.toFloat();
+//  s=s.substring(i+1);
   humidity = s.toFloat();
   s.substring(i+1);
-  
+
+//  waterlevel = s.toInt();
 }
 
 //send irrigation command to endnode
@@ -196,6 +213,9 @@ ICACHE_RAM_ATTR void sendCommand(int command) {
 //irrigation logic based on sensor values
 //TODO
 ICACHE_RAM_ATTR int shouldIrrigate() {
+  if(soil_moisture<50 && humidity<50 && temperature>25){
+    return 1;
+  }
   return 0;
 }
 

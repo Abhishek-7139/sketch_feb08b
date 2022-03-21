@@ -16,8 +16,11 @@
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
-#define RELAYPIN 27
-#define LEDPIN 2
+#define WATERLEVELPOWER 4//digital pin
+#define WATERLEVELREADER 13//analog pin
+
+#define RELAYPIN 34
+//#define LEDPIN 2
 
 //-----------------------------------------------init stuff-----------------------------------------------
 
@@ -29,11 +32,14 @@ DHT dht(DHTPIN, DHTTYPE);
 void setup() {
   Serial.begin(115200);
   delay(10);
-  pinMode(LEDPIN, OUTPUT);
+//  pinMode(LEDPIN, OUTPUT);
 
   //dht setup
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
+
+  pinMode(WATERLEVELPOWER, OUTPUT);
+  digitalWrite(WATERLEVELPOWER, LOW);
 
   pinMode(RELAYPIN, OUTPUT);
 
@@ -73,7 +79,14 @@ void loop() {
   Serial.print("Humidity: ");
   Serial.println(humidity_value);
 
+//  delay(2000);
+//  digitalWrite(WATERLEVELPOWER, HIGH);
+//  delay(10);
+//  int water_level = analogRead(WATERLEVELREADER);
+//  digitalWrite(WATERLEVELPOWER, LOW);
+
   LoRa.beginPacket();
+//  String payload = String(moisture_value, 1)+","+String(temp_value, 1)+","+String(humidity_value, 1)+","+String(water_level);
   String payload = String(moisture_value, 1)+","+String(temp_value, 1)+","+String(humidity_value, 1);
   LoRa.beginPacket();
   LoRa.write(0xFF);
@@ -104,14 +117,14 @@ void recvCallback(int packetSize) {
   }
 
   if (incoming.toInt() == 0) {
-    //digitalWrite(RELAYPIN, LOW);
+    digitalWrite(RELAYPIN, LOW);
     Serial.println("recvd stop command");
-    digitalWrite(LEDPIN, LOW);
+//    digitalWrite(LEDPIN, LOW);
   }
   else if (incoming.toInt() == 1) {
-    //digitalWrite(RELAYPIN, HIGH);
+    digitalWrite(RELAYPIN, HIGH);
     Serial.println("recvd irrigation command");
-    digitalWrite(LEDPIN, HIGH);
+//    digitalWrite(LEDPIN, HIGH);
   }
   
 }
