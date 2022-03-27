@@ -31,6 +31,7 @@ Adafruit_MQTT_Publish temp_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais
 Adafruit_MQTT_Publish hum_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.humidity");
 Adafruit_MQTT_Publish irrigation_event_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.isirrigating");
 Adafruit_MQTT_Publish water_level_feed = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.waterlevel");
+//Adafruit_MQTT_Publish ping_weather = Adafruit_MQTT_Publish(&mqtt, MQTT_NAME "/f/ais.weather/get");
 Adafruit_MQTT_Subscribe water_pump = Adafruit_MQTT_Subscribe(&mqtt, MQTT_NAME "/f/ais.isirrigating");
 //Adafruit_MQTT_Subscribe weather = Adafruit_MQTT_Subscribe(&mqtt, MQTT_NAME "/f/ais.weather");
 
@@ -43,6 +44,7 @@ int isRain = 0;
 int lastCommandTime = 0;
 int lastPublishTime = 0;
 int lastSubCheckTime = 0;
+//int lastPokeTime = 0;
 
 //-----------------------------------------------init stuff-----------------------------------------------
 
@@ -84,11 +86,7 @@ void setup() {
 void loop() {
 
   MQTT_connect();
-
-  //check for waterpump feed sub every 2 seconds
- // if (millis() - lastSubCheckTime > 500) {
-    //check waterpump manual control feed from adafruit io
-    Adafruit_MQTT_Subscribe *subscription;
+  Adafruit_MQTT_Subscribe *subscription;
     while ((subscription = mqtt.readSubscription(5000))) {
       if (subscription == &water_pump) {
         if (strcmp((char*)water_pump.lastread, "1") == 0 && isPumpOn == 0) {
@@ -102,25 +100,14 @@ void loop() {
           isPumpOn = 0;
         }
       }
-//      else if (subscription == &weather) {
-//        if (strcmp((char*)weather.lastread, "1") == 0) {
-//          Serial.println("received rain forecast");
-//          isRain = 1;
-//        }
-//        else if (strcmp((char*)water_pump.lastread, "0") == 0 && isPumpOn == 1) {
-//          Serial.println("received no rain forecast");
-//          isRain = 0;
-//        }
-//      }
     }
     if (!mqtt.ping()) mqtt.disconnect();
-  //}
 
   //print current values
-  Serial.println("Current Sensor Values: " + String(soil_moisture, 3)+ ", " + String(temperature, 3)+ ", " + String(humidity, 3));
+  Serial.println("Current Sensor Values: " + String(soil_moisture, 3)+ ", " + String(temperature, 3)+ ", " + String(humidity, 3)+", "+String(waterlevel));
  
-  //publish current values to adafruit every 10 sec
-  if (millis() - lastPublishTime > 10000) {
+  //publish current values to adafruit every 20 sec
+  if (millis() - lastPublishTime > 20000) {
     if (!soil_moisture_feed.publish(soil_moisture)){delay(5000);}
     if (!temp_feed.publish(temperature)){delay(5000);}
     if (!hum_feed.publish(humidity)){delay(5000);}
@@ -135,6 +122,7 @@ void loop() {
     sendCommand(0);
     isPumpOn = 0;
   }
+  delay(2000);
 
 }
 
@@ -163,13 +151,11 @@ void recvTask(void* parameter) {
   stringParser(incoming);
   
   //send the appropriate command to endnode
-  if (shouldIrrigate() == 1) {
-    isPumpOn = 1;
-    sendCommand(1);
-  }
-
+//  if (shouldIrrigate() == 1 && isPumpOn == 0) {
+//    isPumpOn = 1;
+//    sendCommand(1);
+//  }
   vTaskDelete(NULL);
-
 }
 
 //helper for parsing incoming
@@ -184,28 +170,28 @@ ICACHE_RAM_ATTR void stringParser(String s){
   temperature = temp.toFloat();
   s=s.substring(i+1);
 
-//  i=s.indexOf(",");
-//  temp = s.substring(0, i);
-//  humidity = temp.toFloat();
-//  s=s.substring(i+1);
-  humidity = s.toFloat();
-  s.substring(i+1);
+  i=s.indexOf(",");
+  temp = s.substring(0, i);
+  humidity = temp.toFloat();
+  s=s.substring(i+1);
+//  humidity = s.toFloat();
+//  s.substring(i+1);
 
-//  waterlevel = s.toInt();
+  waterlevel = s.toInt();
 }
 
 //send irrigation command to endnode
 ICACHE_RAM_ATTR void sendCommand(int command) {
-  if (command == 1) Serial.println("sending irrigation command through LoRa");
+  Serial.println("sending irrigation command through LoRa");
   String payload = String(command);
-
+  Serial.println(payload);
   LoRa.beginPacket();
   LoRa.write(0xFF);
   LoRa.write(payload.length());
   LoRa.print(payload);
   LoRa.endPacket();
 
-  lastCommandTime = millis();
+  if (command == 1) lastCommandTime = millis();
 
   LoRa.receive();
 }
@@ -213,29 +199,11 @@ ICACHE_RAM_ATTR void sendCommand(int command) {
 //irrigation logic based on sensor values
 //TODO
 ICACHE_RAM_ATTR int shouldIrrigate() {
-  if(soil_moisture<50 && humidity<50 && temperature>25){
+  if(soil_moisture<50 && humidity<40 && temperature>25){
     return 1;
   }
   return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 //connect to MQTT
 void MQTT_connect() {
